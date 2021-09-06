@@ -1,2 +1,23 @@
-.cache
+# directories to ignore
+.cache/
+__cache__/
+data/
+
+# files to ignore
 results_*
+*.pdf
+*.png
+*.nii.gz
+*.nii
+*.tsv
+*.json
+*.npy
+*.pkl
+*.txt
+*.html
+*.svg
+*.h5
+*.toml
+*.tex
+*.bib
+*.md
