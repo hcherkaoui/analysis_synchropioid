@@ -4,38 +4,26 @@ Synchropioid analysis pipeline
 Preprocesssing step
 -------------------
 
-BIDSify the DICOM files
-~~~~~~~~~~~~~~~~~~~~~~~
+DICOM files BIDSification step
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Running **bidsify_synchropioid**::
+Running **bidsify_synchropioid.py**::
 
-    ./bidsify_synchropioid -i /home/hcherkaoui/DATA/synchropioid/dicom_dir/ -o ../data/ -v
+    ./bidsify_synchropioid.py -i /media/veracrypt1/synchropioid/dicom_dir/ -o /media/veracrypt1/synchropioid/nifti_dir/ -v -n 3
 
+Nifti files fmri-prep preprocessing step
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Fmri-prep preprocess the nifti files
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Launching **fmriprep** on a console::
 
-Launching **fmriprep** on a laptop::
-
-    sudo nice -n 5 docker run -ti --rm -v /home/hcherkaoui/DATA/synchropioid/nifti_dir/:/data:ro -v /home/hcherkaoui/DATA/synchropioid/nifti_dir/:/derivatives:rw -v /home/hcherkaoui/licenses/license.txt:/opt/freesurfer/license.txt:ro poldracklab/fmriprep:latest /data /derivatives/ participant --output-space MNI152Lin --fs-license-file /opt/freesurfer/license.txt --fs-no-reconall --nthreads 3
-
-Launching **fmriprep** on servers (Drago)::
-
-    nice -n 5 docker run -u 658787 -ti --rm -v /storage/store2/work/hcherkaoui/nifti_dir:/data:ro -v /storage/store2/work/hcherkaoui/nifti_dir/:/derivatives:rw -v /home/parietal/hacherka/license.txt:/opt/freesurfer/license.txt:ro poldracklab/fmriprep:latest /data /derivatives/out participant --fs-license-file /opt/freesurfer/license.txt --output-space MNI152Lin --fs-no-reconall --nthreads 20
-
-
-Nilearn preprocess the nifti files
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    python3 nilearn_preprocessing.py -i nifti_dir/derivatives/ -o preproc_dir --cpu 4 --verbose 1
-
+    sudo nice -n 5 docker run -ti --rm -v /media/veracrypt1/synchropioid/nifti_dir/:/data:ro -v /media/veracrypt1/synchropioid/nifti_dir/:/derivatives:rw -v /home/hcherkaoui/licenses/license.txt:/opt/freesurfer/license.txt:ro poldracklab/fmriprep:latest /data /derivatives/ participant --output-space MNI152Lin --fs-license-file /opt/freesurfer/license.txt --fs-no-reconall --random-seed 0 --nthreads 20
 
 HRF estimation step
 -------------------
 
 Running **decomposition_multi_subjects**::
 
-    python3 decomposition_multi_subjects.py --max-iter 100 --seed 0 --preproc-dir preproc_data --results-dir results_slrda --cpu 4 --verbose 1
+    python3 decomposition_multi_subjects.py --max-iter 100 --seed 0 --preproc-dir /media/veracrypt1/synchropioid/nifti_dir/derivatives/ --results-dir results_slrda --cpu 4 --verbose 1
 
 
 Connectome estimation step
@@ -43,7 +31,7 @@ Connectome estimation step
 
 Running **estimation_connectome**::
 
-    python3 estimation_connectome.py --preproc-dir preproc_data --result-dir results_connectome --verbose 1
+    python3 estimation_connectome.py --preproc-dir /media/veracrypt1/synchropioid/nifti_dir/derivatives/ --result-dir results_connectome --verbose 1
 
 
 Plotting step

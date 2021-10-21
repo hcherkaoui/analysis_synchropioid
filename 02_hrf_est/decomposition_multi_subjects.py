@@ -154,7 +154,8 @@ if __name__ == '__main__':
     # parameters grid to be define
     param_grid = {
         'func_path': func_paths,
-        'hrf_atlas': ['havard'],
+        'hrf_atlas': ['basc'],
+        'n_scales': ['scale064', 'scale122', 'scale325'],
         'n_atoms': [10, 20, 30],
         'lbda': [0.001, 0.1, 0.9],
         'hrf_model': ['scaled_hrf'],

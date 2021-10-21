@@ -9,7 +9,6 @@ import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from nilearn import datasets
 from nilearn.glm.first_level import (make_first_level_design_matrix,
                                      FirstLevelModel)
 from nilearn.input_data import NiftiSpheresMasker
@@ -18,18 +17,25 @@ from nilearn.plotting import plot_stat_map
 
 # Global variables
 t_r = 2.0
+
 seed_coords = [(0, 10, 34)]
+
 cache_dir = "__cache__"
-valid_session = [1, 2]
-group_color = dict(control='tab:blue', temgesic='tab:orange')
+
 participants_fname = '../data/nifti_dir/participants.tsv'
 participants_path = os.path.abspath(os.path.normpath(participants_fname))
 participants = pd.read_csv(participants_path, sep='\t')
+
 sub_tag_to_dicom_tag = dict(zip(participants['participant_id'],
                                 participants['DICOM tag']))
 dicom_tag_to_sub_tag = dict(zip(participants['DICOM tag'],
                                 participants['participant_id']))
-selected_group = ['S00634', 'S00669']
+
+selected_keys = {('S00634', 'run-1', 1): (0, 0),
+                 ('S00634', 'run-1', 2): (0, 1),
+                 ('S00669', 'run-1', 1): (1, 0),
+                 ('S00669', 'run-3', 1): (1, 1),
+                }
 
 
 # Global functions
@@ -64,11 +70,12 @@ def th(x, t, absolute=True):
         pass
     else:
         raise ValueError(f"t (={t}) type not understtod: shoud be a float"
-                         f" between 0 and1 or a string such as '80%'")
+                         f" between 0 and 1 or a string such as '80%'")
+    n = -int(t * len(x.flatten()))
     if absolute:
-        return np.sort(np.abs(x.flatten()))[-int(t * len(x.flatten()))]
+        return np.sort(np.abs(x.flatten()))[n]
     else:
-        return np.sort(x.flatten())[int(t * len(x.flatten()))]
+        return np.sort(x.flatten())[n]
 
 
 # Main
@@ -92,7 +99,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.verbose:
-        print(f"Creating '{args.plots_dir}'")
+        print(f"Saving figures under '{args.plots_dir}' directory")
 
     if not os.path.isdir(args.plots_dir):
         os.makedirs(args.plots_dir)
@@ -100,22 +107,27 @@ if __name__ == '__main__':
     results_dir = os.path.abspath(os.path.normpath(args.splitted_session_dir))
     pattern_fname = 'sub-*_run_1_*_session.nii.gz'
     pattern = os.path.join(args.splitted_session_dir, pattern_fname)
+    results_paths = list(glob(pattern, recursive=True))
+
+    if len(results_paths) == 0:
+        raise ValueError(f"No results found under '{args.results_dir}'")
 
     plot_params = dict()
-    for path in glob(pattern, recursive=True):
-        fname = os.path.basename(path)
-        sub_tag, session = fname.split('_')[0], fname.split('_')[3]
-        plot_params[(sub_tag, session)] = path
+    for path in results_paths:
+        sub_tag = path.split('/')[-3]
+        n_run = path.split('/')[-2]
+        fname = path.split('/')[-1]
+        n_session = int(fname.split('-')[-1].split('.')[0])
+        plot_params[(sub_tag, n_run, n_session)] = path
 
     fig, ax = plt.subplots(2, 2, figsize=(10, 10))
-    for keys, path in plot_params.items():
-        sub_tag, session = keys
-        i = 0 if sub_tag == 'sub-05' else 1
-        j = 0 if session == 'first' else 1
+    for key, plot_idx in selected_keys.items():
+        i, j = plot_idx
+        path = plot_params[key]
         z_map = seed_base_analysis(path, seed_coords, args.radius, t_r)
-        th_value = th(z_map.get_fdata(), '50%', absolute=True)
+        th_value = th(x=z_map.get_fdata(), t='80%', absolute=True)
         plot_stat_map(z_map, threshold=th_value, axes=ax[i, j],
-                      title=f"{sub_tag} (session-{session})")
+                      title=f"{sub_tag} (session-{n_session})")
 
     filename = (f"seed_base.pdf")
     filepath = os.path.join(args.plots_dir, filename)

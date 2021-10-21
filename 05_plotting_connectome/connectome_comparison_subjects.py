@@ -14,10 +14,13 @@ import matplotlib.pyplot as plt
 # Global variables
 temgesic_group = ['S00634', 'S00651', 'S00669', 'S00726', 'S00748', 'S00791',
                   'S00805']
+
 group_color = dict(control='tab:blue', temgesic='tab:orange')
+
 participants_fname = '../data/nifti_dir/participants.tsv'
 participants_path = os.path.abspath(os.path.normpath(participants_fname))
 participants = pd.read_csv(participants_path, sep='\t')
+
 sub_tag_convert = dict(zip(participants['participant_id'],
                            participants['DICOM tag']))
 
@@ -40,7 +43,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.verbose:
-        print(f"Creating '{args.plots_dir}'")
+        print(f"Saving figures under '{args.plots_dir}' directory")
 
     if not os.path.isdir(args.plots_dir):
         os.makedirs(args.plots_dir)
@@ -52,7 +55,7 @@ if __name__ == '__main__':
     if len(results_paths) == 0:
         raise ValueError(f"No results found under '{args.results_dir}'")
 
-    columns = ["Group", "sub_tag", "n_run", "det"]
+    columns = ["Group", "sub_tag", "n_run", "f_norm"]
     connectomes = pd.DataFrame(columns=columns)
     for i, results_path in enumerate(results_paths):
 
@@ -60,13 +63,14 @@ if __name__ == '__main__':
         sub_dir_path = os.path.dirname(run_dir_path)
 
         connectome = np.load(results_path)
-        det = np.linalg.det(connectome)
+        f_norm = np.linalg.norm(connectome)
+        # det = np.linalg.det(connectome)
         n_run = int(os.path.basename(run_dir_path)[-1])
         sub_tag = os.path.basename(sub_dir_path)
         group_label = ("temgesic" if sub_tag_convert[sub_tag] in temgesic_group
                        else "control")
 
-        connectomes.loc[i] = [group_label, sub_tag, n_run, det]
+        connectomes.loc[i] = [group_label, sub_tag, n_run, f_norm]
 
     unique_all_n_run = np.unique(connectomes['n_run'])
     unique_sub_tag = np.unique(connectomes['sub_tag'])
@@ -81,23 +85,23 @@ if __name__ == '__main__':
         unique_n_run = np.unique(connectomes[filter_sub]['n_run'])
         unique_n_run.astype(int).sort()
 
-        l_det = []
+        l_f_norm = []
         for n_run in unique_n_run:
             filter_run = connectomes['n_run'] == n_run
             filter_sub_run = filter_sub & filter_run
-            l_det.append(float(connectomes[filter_sub_run]['det']))
+            l_f_norm.append(float(connectomes[filter_sub_run]['f_norm']))
 
-        ax.plot(unique_n_run, l_det, color=group_color[group_label],
-                marker='o', markerfacecolor='tab:gray',
-                markeredgecolor='tab:gray', markersize=2.5, linewidth=2.0)
+        ax.plot(unique_n_run, l_f_norm, color=group_color[group_label],
+                marker='o', markerfacecolor=group_color[group_label],
+                markeredgecolor='tab:gray', markersize=3.0, linewidth=2.0)
 
     ax.set_xticks(unique_all_n_run)
     run_name = [f"Run-{n_run}" for n_run in unique_all_n_run]
     ax.set_xticklabels(run_name, fontdict=dict(fontsize=14))
     ax.tick_params(axis="y", labelsize=14)
     ax.set_xlabel("")
-    ax.set_ylabel("Det(conn)", fontsize=14, rotation=90)
-    plt.yscale('log')
+    ax.set_ylabel("F-norm(conn)", fontsize=14, rotation=90)
+    # plt.yscale('log')
     plt.grid()
     plt.tight_layout()
 
