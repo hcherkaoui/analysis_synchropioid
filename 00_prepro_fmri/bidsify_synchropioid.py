@@ -375,7 +375,7 @@ def archive_script_code(root_bids_dir):
 
 if __name__ == '__main__':
 
-    # ./bidsify_synchropioid -i /home/hcherkaoui/DATA/synchropioid/dicom_dir/ -o ../data/ -v -n 3
+    # ./bidsify_synchropioid.py -i /media/veracrypt1/synchropioid/dicom_dir/ -o /media/veracrypt1/synchropioid/fmri_nifti_dir/ -v -n 3
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('-i','--dicom-input', help='DICOM directories',
@@ -422,7 +422,7 @@ if __name__ == '__main__':
     with open(os.path.join(root_bids_dir, hbrest_descr_filename), 'w') as f:
         json.dump(HBREST_DESCR_, f)
 
-    subject_tags = pd.DataFrame(columns=['participant_id', 'DICOM tag'])
+
 
     def dicomfiles_to_bidsfiles_single_subject(sub_idx,
                                                sub_root_dicom_dir,
@@ -434,10 +434,6 @@ if __name__ == '__main__':
         if verbose:
             print(f"[sub-{sub_idx:02d}] found at '{sub_root_dicom_dir}'")
 
-        # save the corresponding tag
-        dicom_tag = os.path.basename(os.path.abspath(sub_root_dicom_dir))
-        subject_tags.loc[sub_idx] = [f"sub-{sub_idx:02d}", dicom_tag]
-
         # get files tree
         sub_dicom_tree = get_sub_dicom_filenames(sub_root_dicom_dir)
         sub_bids_tree = get_sub_bids_filenames(root_bids_dir, sub_idx)
@@ -447,11 +443,21 @@ if __name__ == '__main__':
                                           force_conversion=force_reconversion,
                                           verbose=verbose)
 
+    # BIDSify all subjects in parallel
     Parallel(n_jobs=args['cpu'], verbose=0)(
         delayed(dicomfiles_to_bidsfiles_single_subject)(
             sub_idx, sub_root_dicom_dir, subject_tags, root_bids_dir, True)
                 for sub_idx, sub_root_dicom_dir
                                 in enumerate(sub_root_dicom_dirs, start=1))
+
+    # generate participants.tsv file
+    subject_tags = pd.DataFrame(columns=['participant_id', 'DICOM tag'])
+    for sub_idx, sub_root_dicom_dir in enumerate(sub_root_dicom_dirs, start=1)):
+        dicom_tag = os.path.basename(os.path.abspath(sub_root_dicom_dir))
+        subject_tags.loc[sub_idx] = [f"sub-{sub_idx:02d}", dicom_tag]
+    subject_tags_filename = "participants.tsv"
+    subject_tags.to_csv(os.path.join(root_bids_dir, subject_tags_filename),
+                        sep='\t', index=False)
 
     # remove .nii, .bval and .bvec files
     subprocess.call(f'find {root_bids_dir} -name "*.nii" -delete',
@@ -460,10 +466,6 @@ if __name__ == '__main__':
                     shell=True, stdout=subprocess.DEVNULL)
     subprocess.call(f'find {root_bids_dir} -name "*.bvec" -delete',
                     shell=True, stdout=subprocess.DEVNULL)
-
-    subject_tags_filename = "participants.tsv"
-    subject_tags.to_csv(os.path.join(root_bids_dir, subject_tags_filename),
-                        sep='\t', index=False)
 
     delta_t = time.strftime("%H h %M min %S s", time.gmtime(time.time() - t0))
     print("Command runs in: {}".format(delta_t))
