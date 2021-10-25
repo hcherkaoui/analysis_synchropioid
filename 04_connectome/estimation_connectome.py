@@ -47,7 +47,10 @@ if __name__ == '__main__':
 
     # get all hyper-band fMRI data available
     preproc_dir = os.path.abspath(os.path.normpath(args.preproc_dir))
-    func_paths = glob(f"{preproc_dir}/*.nii.gz")
+    template_func_paths = (f"{preproc_dir}/derivatives/sub-*/func/sub-*_task-"
+                           f"rest_run-*_space-MNI152Lin_desc-"
+                           f"preproc_bold.nii.gz")
+    func_paths = glob(template_func_paths)
 
     # Gather func_names and metadata
     l_n_run, l_sub_tag = [], []

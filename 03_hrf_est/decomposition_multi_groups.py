@@ -20,7 +20,6 @@ import pandas as pd
 import numpy as np
 from joblib import Parallel, delayed
 from hemolearn import SLRDA
-from hemolearn.utils import fmri_preprocess, sort_atoms_by_explained_variances
 
 
 # Global variables
@@ -31,6 +30,7 @@ cache_dir = "__cache__"
 def decompose_single_subject_multiple_params(decomp_params, results_dir,
                                              verbose=False):
     """ Helper functions for parallelization. """
+    decomp_params_to_archive =decomp_params.copy()
     func_path = decomp_params.pop('func_path')
 
     func_fname = os.path.basename(func_path)
@@ -69,12 +69,8 @@ def decompose_single_subject_multiple_params(decomp_params, results_dir,
             print(f"Decomposition done in {delta_t}")
 
         # Gather all results
-        hrf_ref = slrda.v_init
-        masker_kwargs = dict(mask_img=slrda.mask_full_brain, t_r=t_r,
-                             memory='.', memory_level=1, verbose=0)
-        a_hat, v_hat = slrda.a_hat, slrda.v_hat
-        u_hat, z_hat, variances = sort_atoms_by_explained_variances(
-            slrda.u_hat, slrda.z_hat, slrda.v_hat, slrda.hrf_rois)
+        a_hat, v_hat, hrf_ref = slrda.a_hat, slrda.v_hat, slrda.v_init
+        u_hat, z_hat = slrda.u_hat, slrda.z_hat
         results = dict(func_path=func_path, hrf_ref=hrf_ref,
                        hrf_rois=slrda.hrf_rois,
                        masker_kwargs=masker_kwargs, a_hat=a_hat,
@@ -83,7 +79,8 @@ def decompose_single_subject_multiple_params(decomp_params, results_dir,
 
         # Gather all metadatas
         metadata = dict(sub_tag=sub_tag, func_path=func_path,
-                        n_run=n_run, decomp_params=decomp_params)
+                        n_run=n_run, group_label=group_label,
+                        decomp_params=decomp_params_to_archive)
 
     except Exception as e:
         print(f"Error appear ('{e}'), skipping decomposition and saving "
@@ -115,7 +112,7 @@ def decompose_single_subject_multiple_params(decomp_params, results_dir,
 # Main
 if __name__ == '__main__':
 
-    # python3 decomposition_multi_subjects.py --max-iter 100 --seed 0 --preproc-dir preproc_dir --results-dir results_slrda --cpu 4 --verbose 1
+    # python3 decomposition_multi_groups.py --max-iter 100 --seed 0 --preproc-dir /media/veracrypt1/synchropioid/fmri_nifti_dir/derivatives/ --results-dir results_slrda --cpu 20 --verbose 1
 
     t0_total = time.time()
 
@@ -149,20 +146,28 @@ if __name__ == '__main__':
 
     # get all hyper-band fMRI data available
     preproc_dir = os.path.abspath(os.path.normpath(args.preproc_dir))
-    func_paths = glob(f"{preproc_dir}/*task-hbrest*.nii.gz")
+    template_func_paths = (f"{preproc_dir}/derivatives/sub-*/func/sub-*_task-"
+                           f"rest_run-*_space-MNI152Lin_desc-"
+                           f"preproc_bold.nii.gz")
+    func_paths = glob(template_func_paths)
 
     # parameters grid to be define
     param_grid = {
-        'func_path': func_paths,
+        'func_path': [func_paths],
         'hrf_atlas': ['basc'],
-        'n_scales': ['scale064', 'scale122', 'scale325'],
+        'n_scales': ['scale036', 'scale122', 'scale444'],
         'n_atoms': [10, 20, 30],
+        'shared_spatial_maps': [False],
         'lbda': [0.001, 0.1, 0.9],
         'hrf_model': ['scaled_hrf'],
         'prox_u': ['l1-positive-simplex'],
+        'standardize': [True],
+        'detrend': [True],
+        'low_pass': [None, 0.1],
+        'high_pass': [None, 0.01],
         'max_iter': [args.max_iter],
         'n_times_atom': [60],
-        'eps': [1.0e-3],
+        'eps': [1.0e-4],
         'cache_dir': [cache_dir],
         't_r': [t_r],
         'verbose': [2],
