@@ -1,0 +1,24 @@
+# Python requirement
+
+# classic dependencies
+scipy==1.7.3
+numpy==1.20.3
+pandas==1.3.5
+
+# machine learning dependencies
+scikit-learn==1.0.1
+nilearn==0.8.1
+
+# Hemolearn computation specific dependencies
+joblib==1.1.0
+threadpoolctl==3.0.0
+prox_tv
+
+# plotting dependencies
+matplotlib==3.5.1
+
+# preprocessing dependencies
+fmriprep
+
+# HRF estimation dependencies (Hemolearn)
+git+https://github.com/hemolearn/hemolearn@master#egg=hemolearn

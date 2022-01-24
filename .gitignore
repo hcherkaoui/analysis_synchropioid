@@ -13,7 +13,6 @@ results_*
 *.json
 *.npy
 *.pkl
-*.txt
 *.html
 *.svg
 *.h5
