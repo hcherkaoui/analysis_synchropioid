@@ -300,7 +300,7 @@ if __name__ == '__main__':
 
     # generate participants.tsv file
     subject_tags = pd.DataFrame(columns=['participant_id', 'DICOM tag'])
-    for sub_idx, sub_root_dicom_dir in enumerate(sub_root_dicom_dirs, start=1)):
+    for sub_idx, sub_root_dicom_dir in enumerate(sub_root_dicom_dirs, start=1):
         dicom_tag = os.path.basename(os.path.abspath(sub_root_dicom_dir))
         subject_tags.loc[sub_idx] = [f"sub-{sub_idx:02d}", dicom_tag]
     subject_tags_filename = "participants.tsv"
