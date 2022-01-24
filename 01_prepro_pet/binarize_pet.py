@@ -21,7 +21,7 @@ def threshold(pet_fname, th='10%'):
 
 if __name__ == '__main__':
 
-    # ./binarized_pet -v --show-plot --pet-filename ../data/pet_dir/con_0001.nii --list-threshold 90% --cluster-threshold 0 --mask-filename pet_mask.nii.gz
+    # ./binarized_pet.py -v --show-plot --pet-filename /media/veracrypt1/synchropioid/pet_nifti_dir/con_0001.nii --list-threshold 90% --cluster-threshold 0 --mask-filename /media/veracrypt1/synchropioid/pet_nifti_dir/pet_mask.nii.gz
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('-f', '--pet-filename', type=str,
@@ -37,7 +37,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--show-plot',
                         help='Option to display the PET-mask',
                         action='store_true',
-                        default=True)
+                        default=False)
     parser.add_argument('-v', '--verbose', help='Verbose', action='store_true',
                         default=False)
     args = parser.parse_args()
@@ -60,7 +60,7 @@ if __name__ == '__main__':
         fpath = os.path.join(path, fname)
 
         if args.verbose:
-            print(f"PET-mask saved under '{args.mask_filename}'.")
+            print(f"PET-mask saved under '{fpath}'.")
 
         pet_mask.to_filename(fpath)
 

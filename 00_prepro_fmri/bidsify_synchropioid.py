@@ -13,12 +13,9 @@ from joblib import Parallel, delayed
 import json
 import numpy as np
 import pandas as pd
-from pydicom.filereader import dcmread
 
 
 t0 = time.time()
-
-VALID_DICOM_EXT = ['.dcm', '.ima', '.dicom']
 
 
 DESCR_ = {
@@ -66,6 +63,7 @@ CHANGES_ = """
 0.0.2 2021-08-20
  - Adding TR=2s EPI sequences (resting state)
 """
+
 
 README_ = """
 Synchropioid dataset
@@ -147,139 +145,6 @@ def get_sub_bids_filenames(root_bids_dir, idx_sub):
     return sub_bids_tree
 
 
-# def fix_incomplete_vol(dicom_dir,
-#                        copy=False,
-#                        invalid_dir_prefix='invalid_dicom_from_',
-#                        verbose=False):
-#     """ Move (or copy) incomplete volumes from DICOM directory to a specific
-#     directory.
-
-
-#     Parameters
-#     ----------
-#     dicom_dir : str, DICOM directory to sanityze
-#     copy : boolean, whether or not to copy the invalid DICOM files (by default
-#         move them).
-#     invalid_dir_prefix : str, prefix to add to the dicom_dir to create the
-#         directory in which gather the invalid DICOM files.
-#     verbose : boolean, verbosity level
-#     """
-#     if verbose:
-#         print(f"Searching dicom files under '{dicom_dir}'")
-
-#     # gather DICOM files
-#     dicom_fnames = glob(dicom_dir + '/*')
-#     dicom_fnames = [fname for fname in dicom_fnames
-#                     if os.path.splitext(fname)[-1].lower() in VALID_DICOM_EXT]
-
-#     # check if DICOM files are found
-#     if not dicom_fnames:
-#         raise ValueError(f"No dicom files found under '{dicom_dir}'")
-
-#     # gather the DICOM information for each files
-#     dicom_infos, slices_loc, instance_nb = [], [], []
-#     for fname in dicom_fnames:  # time-costly
-#         dicom_info = dcmread(fname, stop_before_pixels=True)
-#         dicom_infos.append(dicom_info)
-#         slices_loc.append(dicom_info.SliceLocation)
-#         instance_nb.append(dicom_info.InstanceNumber)
-
-#     # gather informations of the acquisition
-#     slices_loc = np.unique(slices_loc)
-#     last_slice_id = max(instance_nb)
-
-#     # check if fMRI DICOM
-#     if not hasattr(dicom_infos[0], 'NumberOfTemporalPositions'):
-
-#         if verbose:
-#             print('Not fMRI DICOM data: (probably) no fixing required')
-
-#         return
-
-#     # gather informations of the acquisition
-#     nb_frames = dicom_infos[0].NumberOfTemporalPositions
-#     nb_slices_per_volume = len(slices_loc)
-
-#     # check if the total number of slices is coherent
-#     if (last_slice_id == nb_frames * nb_slices_per_volume and
-#         len(dicom_infos) == last_slice_id):
-
-#         if verbose:
-#             print('All volumes are complete, no fixing required')
-
-#         return
-
-#     if verbose:
-#         print('Errors detected, starting collecting and removing uncomplet '
-#               'volumes')
-
-#     # collect and tag the missing slice
-#     col_names = ["fname", "slice_id", "stack_pos", "frame_pos"]
-#     slice_info = pd.DataFrame(columns=col_names)
-
-#     # time-costly loop
-#     for i, dicom_tuple in enumerate(zip(dicom_infos, dicom_fnames), start=1):
-#         dicom_info, dicom_fname = dicom_tuple
-#         stack_pos = dicom_info.InStackPositionNumber
-#         slice_id = dicom_info.InstanceNumber
-#         if hasattr(dicom_info, 'TemporalPositionIdentifier'):
-#             frame_pos = dicom_info.TemporalPositionIdentifier
-#         else:
-#             frame_pos = None
-#         slice_info.loc[i] = [dicom_fname, slice_id, stack_pos, frame_pos]
-#     slice_info.sort_values("slice_id", inplace=True)
-
-#     # if any None in 'frame_pos' columns, force its values
-#     if slice_info['frame_pos'].isnull().sum().astype(bool):
-#         frame_pos, frame_pos_value = [], 0
-#         for i in range(len(slice_info)):
-#             if i % nb_slices_per_volume == 0:
-#                 frame_pos_value += 1
-#             frame_pos.append(frame_pos_value)
-#         slice_info['frame_pos'] = frame_pos
-
-#     # find and tag the files belonging to incomplet volume
-#     corrupted_files = []
-#     for i in range(1, nb_frames + 1):
-#         all_slices_for_that_volume = slice_info[slice_info['frame_pos'] == i]
-#         nb_slices_for_that_volume = len(all_slices_for_that_volume)
-#         if nb_slices_for_that_volume != nb_slices_per_volume:
-#             corrupted_files += list(all_slices_for_that_volume["fname"])
-
-#     # check if we fail to collect incomplete volumes
-#     if not len(corrupted_files):
-
-#         if verbose:
-#             print("Error: cannot collect incomplete volumes from DICOM "
-#                   "directory")
-
-#         return
-
-#     # separate invalid dicom filename from dicom directory
-#     dicom_dir_path, fname = os.path.split(dicom_dir)
-
-#     # separate dicom directory name from dicom directory path
-#     subject_dir, dicom_dir_head = os.path.split(dicom_dir)
-
-#     # rename dicom directory name and join the path
-#     invalid_dicom_dir = invalid_dir_prefix + dicom_dir_head
-#     dicom_dir_path = os.path.join(subject_dir, invalid_dicom_dir)
-
-#     # create the proper dicom directory path for invalid dicom files
-#     if not os.path.isdir(dicom_dir_path):
-#         os.mkdir(dicom_dir_path)
-
-#     if verbose:
-#         print(f"{'Copying' if copy else 'Moving'} {len(corrupted_files)} "
-#               f"corrupted DICOM files to '{dicom_dir_path}'")
-
-#     for fpath in corrupted_files:
-#         if copy:
-#             shutil.copy(fpath, dicom_dir_path)
-#         else:
-#             shutil.move(fpath, dicom_dir_path)
-
-
 def transform_dicomfiles_to_bidsfiles(sub_dicom_tree, sub_bids_tree,
                                       force_conversion=False, verbose=False):
     """ Produce the convertion of the DICOM to the Nifti and re-arrange the
@@ -314,22 +179,6 @@ def transform_dicomfiles_to_bidsfiles(sub_dicom_tree, sub_bids_tree,
                         os.remove(bids_filepath)
                     except FileNotFoundError:
                         pass  # probably already deleted
-
-                # if verbose:
-                #     print(f"[{sub_tag}] Checking for invalid DICOM volumes under "
-                #         f"'{dicom_dir}/*'...")
-
-                # try:
-                #     prefix = 'invalid_dicom_from_'
-                #     fix_incomplete_vol(dicom_dir, copy=False,
-                #                        invalid_dir_prefix=prefix,
-                #                        verbose=False)
-
-                # except Exception as e:
-                #     if verbose:
-                #         print(f"    Can't fix missing volumes in DICOM files "
-                #             f"(error message: '{e}')...    Skipped!")
-                #     continue
 
                 if verbose:
                     print(f"[{sub_tag}] Converting '{dicom_dir}/*' to "
@@ -392,7 +241,6 @@ if __name__ == '__main__':
     args = vars(parser.parse_args())
 
     sub_root_dicom_dirs = glob(args['dicom_input'] + '/*/')
-    sub_root_dicom_dirs = sub_root_dicom_dirs[:2]  # XXX
     root_bids_dir = args['bids_output']
     force_reconversion = args['force_reconversion']
     verbose = args['verbose']
