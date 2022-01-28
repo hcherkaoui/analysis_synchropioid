@@ -9,9 +9,13 @@ To reproduct the results from the analysis of the Synchropioid project, you will
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To download the following tutorial:
+
 - Go to the public repository https://github.com/hcherkaoui/analysis_synchropioid
+
 - Click on the green 'Code' button
+
 - Click on the 'Download ZIP' button
+
 - After downloading the repository, go to your chosen downloading folder and extract the downloaded compressed folder with ::
 
     unzip analysis_synchropioid-main.zip
