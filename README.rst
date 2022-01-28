@@ -73,7 +73,7 @@ If you need to restart a failed preprocessing step, first you will need to delet
 
 Simply re-run the docker command after the deleting step.
 
-To match the BIDS format, rename the produced preprocessing folder:
+To match the BIDS format, rename the produced preprocessing folder ::
 
     mv /biomaps/synchropioid/dataset_synchropioid/fmri_nifti_dir/fmriprep/ /biomaps/synchropioid/dataset_synchropioid/fmri_nifti_dir/derivatives/
 
