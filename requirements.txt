@@ -17,8 +17,8 @@ prox_tv
 # plotting dependencies
 matplotlib==3.5.1
 
-# preprocessing dependencies
-fmriprep
+# MRI quality check dependencies
+mriqc==0.16.1
 
 # HRF estimation dependencies (Hemolearn)
 git+https://github.com/hemolearn/hemolearn@master#egg=hemolearn

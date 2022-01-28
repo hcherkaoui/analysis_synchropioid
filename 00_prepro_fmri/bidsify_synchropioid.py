@@ -245,9 +245,6 @@ if __name__ == '__main__':
     force_reconversion = args['force_reconversion']
     verbose = args['verbose']
 
-    if not os.path.exists(root_bids_dir):
-        os.makedirs(root_bids_dir)
-
     archive_script_code(root_bids_dir)
 
     change_filename = 'CHANGES'
@@ -274,7 +271,6 @@ if __name__ == '__main__':
 
     def dicomfiles_to_bidsfiles_single_subject(sub_idx,
                                                sub_root_dicom_dir,
-                                               subject_tags,
                                                root_bids_dir,
                                                verbose=False):
         """ Transform the DICOM files into a correct BIDS directory for a
@@ -294,7 +290,7 @@ if __name__ == '__main__':
     # BIDSify all subjects in parallel
     Parallel(n_jobs=args['cpu'], verbose=0)(
         delayed(dicomfiles_to_bidsfiles_single_subject)(
-            sub_idx, sub_root_dicom_dir, subject_tags, root_bids_dir, True)
+            sub_idx, sub_root_dicom_dir, root_bids_dir, True)
                 for sub_idx, sub_root_dicom_dir
                                 in enumerate(sub_root_dicom_dirs, start=1))
 
