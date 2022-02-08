@@ -9,7 +9,6 @@ import pprint
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-from sklearn.linear_model import RidgeClassifier, LogisticRegression
 from sklearn.svm import SVC
 from sklearn.model_selection import RepeatedStratifiedKFold, GridSearchCV
 
@@ -17,7 +16,7 @@ from sklearn.model_selection import RepeatedStratifiedKFold, GridSearchCV
 # Main
 if __name__ == '__main__':
 
-    # python3 plot_decoding_connectomes.py --connectomes-dir ../04_connectome/results_connectome/ --plots-dir plots --seed 0 --cpu 3 --verbose 1
+    # python3 plot_decoding_connectomes.py --connectomes-dir ../03_connectome/results_connectome/ --plots-dir plots --seed 0 --cpu 3 --task-filter only_hb_rest --verbose 1
 
     t0_total = time.time()
 
@@ -31,9 +30,25 @@ if __name__ == '__main__':
     parser.add_argument('--cpu', type=int, default=1,
                         help='Set the number of CPU for the decomposition.')
     parser.add_argument('--seed', type=int, default=None, help='Seed.')
+    parser.add_argument('--task-filter', type=str,
+                        default='all_task',
+                        help='Filter the fMRI task loaded, valid options are '
+                             '["only_hb_rest", "only_rest", "all_task"].')
     parser.add_argument('--verbose', type=int, default=0,
                         help='Verbosity level.')
     args = parser.parse_args()
+
+    if args.task_filter == 'only_hb_rest':
+        valid_tr = [0.8]
+
+    elif args.task_filter == 'only_rest':
+        valid_tr = [2.0]
+
+    elif args.task_filter == 'all_task':
+        valid_tr = [0.8, 2.0]
+
+    else:
+        valid_tr = [0.8, 2.0]
 
     ###########################################################################
     # Collect the seed base anlaysis z-maps
@@ -45,31 +60,37 @@ if __name__ == '__main__':
                                              f"tr-*_group-*.npy")
     connectome_paths = glob(template_connectome_paths)
 
+    i = 0
     runs = []
     columns = ['sub', 'run', 'group', 'connectome']
     connectomes = pd.DataFrame(columns=columns)
-    for i, connectome_path in enumerate(connectome_paths):
+    for connectome_path in connectome_paths:
 
         connectome_path = os.path.normpath(connectome_path)
         connectome_name = os.path.basename(connectome_path)
         chunks = connectome_name.split('_')
-        sub, run, group = chunks[2], chunks[3], chunks[5]
+        sub, run, t_r, group = chunks[2], chunks[3], chunks[4], chunks[5]
 
         sub = int(sub.split('-')[-1])
         run = f"Run-{int(run.split('-')[-1])}"
         group = group.split('-')[-1].split('.')[0]
         group = 0 if group == 'control' else 1
+        t_r = float(t_r.split('-')[-1])
 
         connectome = np.load(connectome_path)
         connectome = connectome[np.tril(connectome, -1) == 0].flatten()
 
-        if args.verbose:
-            print(f"\r[{i+1:02d}/{len(connectome_paths):02d}] Connectome"
-                  f" extraction for '{connectome_path}'", end='')
+        if t_r in valid_tr:
 
-        connectomes.loc[i] = [sub, run, group, connectome]
+            if args.verbose:
+                print(f"\r[{i+1:02d}/{len(connectome_paths):02d}] Connectome"
+                    f" extraction for '{connectome_path}'", end='')
 
-        runs.append(run)
+            connectomes.loc[i] = [sub, run, group, connectome]
+
+            runs.append(run)
+
+            i += 1
 
     print()
 
@@ -95,12 +116,6 @@ if __name__ == '__main__':
             print(f"[{run}] Fitting decoder...")
 
         grid = GridSearchCV(
-                    # estimator=LogisticRegression(),
-                    # param_grid=[dict(C=list(np.logspace(-10, 10, 21)),
-                    #                  fit_intercept=[False, True])],
-                    # estimator=RidgeClassifier(),
-                    # param_grid=[dict(alpha=list(np.logspace(-10, 10, 21)),
-                    #                  fit_intercept=[False, True])],
                     estimator=SVC(),
                     param_grid=[dict(C=list(np.logspace(-10, 10, 21)),
                                      kernel=['linear', 'rbf'])],

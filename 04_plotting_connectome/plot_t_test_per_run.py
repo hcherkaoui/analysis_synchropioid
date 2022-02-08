@@ -33,7 +33,7 @@ def mask_from_connectome_matrix(th, conn):
 # Main
 if __name__ == '__main__':
 
-    # python3 plot_t_test_per_run.py --connectome-dir ../04_connectome/results_connectome/ --plots-dir plots --verbose 1
+    # python3 plot_t_test_per_run.py --connectome-dir ../03_connectome/results_connectome/ --plots-dir plots --verbose 1
 
     t0_total = time.time()
 
@@ -94,8 +94,6 @@ if __name__ == '__main__':
                                          figsize=(ncols * 8, nrows * 4))
 
     _, atlas = fetch_aal3_vascular_atlas()
-    # atlas = datasets.fetch_atlas_msdl()['maps']
-    # atlas = datasets.fetch_atlas_yeo_2011()['thick_17']
     coordinates = plotting.find_parcellation_cut_coords(labels_img=atlas)
 
     p = 1

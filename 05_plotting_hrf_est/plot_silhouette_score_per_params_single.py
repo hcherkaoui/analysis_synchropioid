@@ -21,10 +21,11 @@ mpl.rcParams['text.latex.preamble'] = [
     r'\usepackage{amssymb}'
 ]
 
+
 # Main
 if __name__ == '__main__':
 
-    # python3 plot_silhouette_score_per_params_group.py --plots-dir plots --results-dir ../03_hrf_est/results_hrf_estimation_group/ --verbose 1
+    # python3 plot_silhouette_score_per_params_single.py --plots-dir plots --results-dir ../02_hrf_est/results_hrf_estimation/ --task-filter only_hb_rest --verbose 1
 
     t0_total = time.time()
 
@@ -34,9 +35,25 @@ if __name__ == '__main__':
                         help='Set the name of the plots directory.')
     parser.add_argument('--results-dir', type=str, default='results_dir',
                         help='Set the name of the results directory.')
+    parser.add_argument('--task-filter', type=str,
+                        default='all_task',
+                        help='Filter the fMRI task loaded, valid options are '
+                             '["only_hb_rest", "only_rest", "all_task"].')
     parser.add_argument('--verbose', type=int, default=0,
                         help='Verbosity level.')
     args = parser.parse_args()
+
+    if args.task_filter == 'only_hb_rest':
+        valid_tr = [0.8]
+
+    elif args.task_filter == 'only_rest':
+        valid_tr = [2.0]
+
+    elif args.task_filter == 'all_task':
+        valid_tr = [0.8, 2.0]
+
+    else:
+        valid_tr = [0.8, 2.0]
 
     ###########################################################################
     # Collect functional data
@@ -57,9 +74,9 @@ if __name__ == '__main__':
     if len(decomp_dirs) == 0:
         raise ValueError(f"No results found under '{args.results_dir}'")
 
+    i = 0
     columns = ['sub', 'run', 'group', 'lbda', 'a_hat']
     haemo_delays = pd.DataFrame(columns=columns)
-    i = 0
     for n, decomp_dir in enumerate(decomp_dirs):
 
         results_path = os.path.join(decomp_dir, 'results.pkl')
@@ -73,11 +90,13 @@ if __name__ == '__main__':
         try:
             lbda = metadata['decomp_params']['lbda']
             run = metadata['n_run']
+            t_r = metadata['t_r']
             group = 0 if metadata['group_label'] == 'control' else 1
-            sub_tags = metadata['sub_tags']
+            sub_tag = metadata['sub_tag']
 
-            for sub_tag, a_hat in zip(sub_tags, results['a_hat']):
-                for a_hat_ in a_hat:
+            if t_r in valid_tr:
+
+                for a_hat_ in results['a_hat']:
                     new_col = [sub_tag, run, group, lbda, a_hat_]
                     haemo_delays.loc[i] = new_col
                     i += 1
@@ -143,7 +162,13 @@ if __name__ == '__main__':
 
     ###########################################################################
     # Send back best params
-    jsonfname = 'best_group_decomp_params.json'
+    decomp_params_dir = 'decomp_params'
+    if not os.path.isdir(decomp_params_dir):
+        os.makedirs(decomp_params_dir)
+
+    jsonfname = 'best_single_subject_decomp_params.json'
+    jsonfname = os.path.join(decomp_params_dir, jsonfname)
+
     if args.verbose:
         print(f"Saving best parameters under '{jsonfname}'")
     with open(jsonfname, 'w') as jsonfile:
@@ -152,19 +177,32 @@ if __name__ == '__main__':
     ###########################################################################
     # Plotting
     selected_lbda = lbdas[np.argmax(silhouette_score)]
-    plt.figure("Silhouette score", figsize=(3, 2))
-    plt.errorbar(lbdas, mean_a_hat, yerr=std_a_hat)
-    plt.plot(lbdas, silhouette_score)
-    plt.axvline(selected_lbda, lw=0.75, c='k')
-    plt.text(selected_lbda, -0.4, rf"${selected_lbda:.4f}$")
-    plt.grid()
-    plt.xscale('log')
-    plt.xlabel("Temporal reg.", fontsize=14)
-    plt.ylabel(r"$\lambda_f$", fontsize=14, rotation=0)
+
+    fig, axs = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=(5, 4))
+
+    axs[0].plot(lbdas, silhouette_score, marker='.',
+                color='tab:orange')
+    axs[0].axvline(selected_lbda, lw=0.75, c='k')
+    axs[0].text(selected_lbda, -0.4, rf"${selected_lbda:.4f}$")
+    axs[0].grid()
+    axs[0].set_xscale('log')
+    axs[0].set_ylabel("silhouette\nscore", fontsize=11, rotation=90)
+    axs[0].set_ylim(-0.2, 0.2)
+
+    axs[1].errorbar(lbdas, mean_a_hat, yerr=std_a_hat, marker='.',
+                    color='tab:blue')
+    axs[1].axvline(selected_lbda, lw=0.75, c='k')
+    axs[1].text(selected_lbda, -0.4, rf"${selected_lbda:.4f}$")
+    axs[1].grid()
+    axs[1].set_xscale('log')
+    axs[1].set_xlabel(r"$\lambda_f$", fontsize=14)
+    axs[1].set_ylabel(r"$\overline{\delta}$", fontsize=14, rotation=0)
+    axs[1].set_ylim(0.2 - 0.1, 2.0 + 0.1)
+
     plt.tight_layout()
 
     filename = os.path.join(args.plots_dir,
-                            'silhouette_score_per_params_group')
+                            'silhouette_score_per_params_single')
 
     print(f"Saving plot at '{filename + '.pdf'}'")
     plt.savefig(filename + '.pdf', dpi=300)

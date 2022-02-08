@@ -16,8 +16,7 @@ from nilearn import input_data, plotting
 # Main
 if __name__ == '__main__':
 
-    # python3 plot_t_test_per_run.py --vascular-maps-dir output_dir --plots-dir plots --verbose 1
-    # python3 plot_t_test_per_run.py --vascular-maps-dir output_shared_maps_dir --plots-dir plots --verbose 1
+    # python3 plot_t_test_per_run.py --vascular-maps-dir output_dir --plots-dir plots --task-filter only_hb_rest --verbose 1
 
     t0_total = time.time()
 
@@ -27,9 +26,25 @@ if __name__ == '__main__':
                         help='Set the name of the Nifti preproc directory.')
     parser.add_argument('--plots-dir', type=str, default='plots',
                         help='Plots directory.')
+    parser.add_argument('--task-filter', type=str,
+                        default='all_task',
+                        help='Filter the fMRI task loaded, valid options are '
+                             '["only_hb_rest", "only_rest", "all_task"].')
     parser.add_argument('--verbose', type=int, default=0,
                         help='Verbosity level.')
     args = parser.parse_args()
+
+    if args.task_filter == 'only_hb_rest':
+        valid_tr = [0.8]
+
+    elif args.task_filter == 'only_rest':
+        valid_tr = [2.0]
+
+    elif args.task_filter == 'all_task':
+        valid_tr = [0.8, 2.0]
+
+    else:
+        valid_tr = [0.8, 2.0]
 
     ###########################################################################
     # Collect the seed base analysis z-maps
@@ -44,10 +59,11 @@ if __name__ == '__main__':
     masker = input_data.NiftiMasker()
     masker.fit(vascular_maps_paths)
 
+    i = 0
     runs = []
     columns = ['sub', 'run', 'group', 'vascular_map']
     vascular_maps = pd.DataFrame(columns=columns)
-    for i, vascular_maps_path in enumerate(vascular_maps_paths):
+    for vascular_maps_path in vascular_maps_paths:
 
         vascular_maps_path = os.path.normpath(vascular_maps_path)
         vascular_maps_name = os.path.basename(vascular_maps_path)
@@ -61,20 +77,24 @@ if __name__ == '__main__':
 
         vascular_map = masker.transform_single_imgs(vascular_maps_path)
 
-        if args.verbose:
-            print(f"\r[{i+1:02d}/{len(vascular_maps_paths):02d}] Vascular "
-                  f"maps extraction for '{vascular_maps_path}'", end='')
+        if t_r in valid_tr:
 
-        vascular_maps.loc[i] = [sub, run, group, vascular_map.flatten()]
+            vascular_maps.loc[i] = [sub, run, group, vascular_map.flatten()]
 
-        runs.append(run)
+            if args.verbose:
+                print(f"\r[{i+1:02d}/{len(vascular_maps_paths):02d}] Vascular "
+                    f"maps extraction for '{vascular_maps_path}'", end='')
+
+            runs.append(run)
+
+            i += 1
 
     runs = np.sort(np.unique(runs))
 
     ###########################################################################
     # Plotting
     nrows, ncols = len(runs), 1
-    _, axis = plt.subplots(nrows, ncols, figsize=(ncols * 20, nrows * 2))
+    _, axis = plt.subplots(nrows, ncols, figsize=(ncols * 15, nrows * 2))
 
     for ax, run in zip(axis, runs):
 
@@ -98,12 +118,10 @@ if __name__ == '__main__':
 
             neg_log_pval_img = masker.inverse_transform(-np.log10(pval))
 
-            colorbar = True if run == 'Run-5' else False
-
             plotting.plot_stat_map(neg_log_pval_img, title=run, cmap='bwr',
-                                   display_mode='z', colorbar=colorbar,
-                                   cut_coords=np.linspace(-40, 70, 15),
-                                   axes=ax, threshold=1.0, vmax=3.0)
+                                   display_mode='z', colorbar=True,
+                                   cut_coords=np.linspace(-40, 70, 7),
+                                   axes=ax,)
 
         except TypeError:
 

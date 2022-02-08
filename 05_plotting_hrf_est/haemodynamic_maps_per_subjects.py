@@ -18,9 +18,7 @@ temgesic_group = ['S00634_1558', 'S00651_1695', 'S00669_1795', 'S00726_2083',
 # Main
 if __name__ == '__main__':
 
-    # python3 haemodynamic_maps_per_subjects.py --bids-root-dir /media/veracrypt1/synchropioid/fmri_nifti_dir/ --results-dir ../03_hrf_est/results_hrf_estimation_subject/ --best-params-file decomp_params/best_single_subject_decomp_params.json --output-dir output_dir  --verbose 1
-
-    # python3 haemodynamic_maps_per_subjects.py --bids-root-dir /media/veracrypt1/synchropioid/fmri_nifti_dir/ --results-dir ../03_hrf_est/results_hrf_estimation_group/ --best-params-file decomp_params/best_group_decomp_params.json --output-dir output_shared_maps_dir --verbose 1
+    # python3 haemodynamic_maps_per_subjects.py --bids-root-dir /media/veracrypt1/synchropioid/fmri_nifti_dir/ --results-dir ../02_hrf_est/results_hrf_estimation/ --best-params-file decomp_params/best_single_subject_decomp_params.json --output-dir output_dir --task-filter only_hb_rest --verbose 1
 
     t0_total = time.time()
 
@@ -36,9 +34,25 @@ if __name__ == '__main__':
     parser.add_argument('--best-params-file', type=str,
                         default='best_group_decomp_params.json',
                         help='Load the best decomposition parameters.')
+    parser.add_argument('--task-filter', type=str,
+                        default='all_task',
+                        help='Filter the fMRI task loaded, valid options are '
+                             '["only_hb_rest", "only_rest", "all_task"].')
     parser.add_argument('--verbose', type=int, default=0,
                         help='Verbosity level.')
     args = parser.parse_args()
+
+    if args.task_filter == 'only_hb_rest':
+        valid_tr = [0.8]
+
+    elif args.task_filter == 'only_rest':
+        valid_tr = [2.0]
+
+    elif args.task_filter == 'all_task':
+        valid_tr = [0.8, 2.0]
+
+    else:
+        valid_tr = [0.8, 2.0]
 
     ###########################################################################
     # Collect the functional data
@@ -95,18 +109,20 @@ if __name__ == '__main__':
 
             if lbda == best_params['lbda']:
 
-                if shared_maps:
-                    for sub_, a_hat_img_ in zip(sub, a_hat_img):
-                        filename = (f"{sub_}_run-{run}_group-{group}_"
-                                    f"tr-{t_r}_shared_maps_hrfmaps.nii.gz")
-                        filepath = os.path.join(args.output_dir, filename)
-                        a_hat_img_.to_filename(filepath)
+                if t_r in valid_tr:
 
-                else:
-                    filename = (f"{sub}_run-{run}_group-{group}_tr-{t_r}_"
-                                f"hrfmaps.nii.gz")
-                    filepath = os.path.join(args.output_dir, filename)
-                    a_hat_img.to_filename(filepath)
+                    if shared_maps:
+                        for sub_, a_hat_img_ in zip(sub, a_hat_img):
+                            filename = (f"{sub_}_run-{run}_group-{group}_"
+                                        f"tr-{t_r}_shared_maps_hrfmaps.nii.gz")
+                            filepath = os.path.join(args.output_dir, filename)
+                            a_hat_img_.to_filename(filepath)
+
+                    else:
+                        filename = (f"{sub}_run-{run}_group-{group}_tr-{t_r}_"
+                                    f"hrfmaps.nii.gz")
+                        filepath = os.path.join(args.output_dir, filename)
+                        a_hat_img.to_filename(filepath)
 
         except KeyError as e:
             continue

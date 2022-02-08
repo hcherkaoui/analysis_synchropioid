@@ -29,9 +29,7 @@ temgesic_group = ['S00634_1558', 'S00651_1695', 'S00669_1795', 'S00726_2083',
 # Main
 if __name__ == '__main__':
 
-    # python3 plot_haemodynamic_delays_comparison_subjects.py --plots-dir plots --bids-root-dir /media/veracrypt1/synchropioid/fmri_nifti_dir/ --results-dir ../03_hrf_est/results_hrf_estimation_subject/ --best-params-file decomp_params/best_single_subject_decomp_params.json --verbose 1
-
-    # python3 plot_haemodynamic_delays_comparison_subjects.py --plots-dir plots --bids-root-dir /media/veracrypt1/synchropioid/fmri_nifti_dir/ --results-dir ../03_hrf_est/results_hrf_estimation_group/ --best-params-file decomp_params/best_group_decomp_params.json --verbose 1
+    # python3 plot_haemodynamic_delays_comparison_subjects.py --plots-dir plots --bids-root-dir /media/veracrypt1/synchropioid/fmri_nifti_dir/ --results-dir ../02_hrf_est/results_hrf_estimation/ --best-params-file decomp_params/best_single_subject_decomp_params.json --task-filter only_hb_rest --verbose 1
 
     t0_total = time.time()
 
@@ -49,9 +47,25 @@ if __name__ == '__main__':
     parser.add_argument('--best-params-file', type=str,
                         default='best_group_decomp_params.json',
                         help='Load the best decomposition parameters.')
+    parser.add_argument('--task-filter', type=str,
+                        default='all_task',
+                        help='Filter the fMRI task loaded, valid options are '
+                             '["only_hb_rest", "only_rest", "all_task"].')
     parser.add_argument('--verbose', type=int, default=0,
                         help='Verbosity level.')
     args = parser.parse_args()
+
+    if args.task_filter == 'only_hb_rest':
+        valid_tr = [0.8]
+
+    elif args.task_filter == 'only_rest':
+        valid_tr = [2.0]
+
+    elif args.task_filter == 'all_task':
+        valid_tr = [0.8, 2.0]
+
+    else:
+        valid_tr = [0.8, 2.0]
 
     ###########################################################################
     # Collect the functional data
@@ -59,7 +73,7 @@ if __name__ == '__main__':
     participants_path = os.path.abspath(os.path.normpath(participants_fname))
     participants = pd.read_csv(participants_path, sep='\t')
     sub_tag_convert = dict(zip(participants['participant_id'],
-                            participants['DICOM tag']))
+                               participants['DICOM tag']))
 
     with open(args.best_params_file, 'r') as jsonfile:
         best_params = json.load(jsonfile)
@@ -112,19 +126,21 @@ if __name__ == '__main__':
 
             if lbda == best_params['lbda']:
 
-                if shared_maps:
-                    for sub_, a_hat_ in zip(sub, a_hat):
-                        for a_hat__, roi_label_ in zip(a_hat_, hrf_rois):
-                            new_row = [sub_, group, t_r, run, a_hat__,
-                                    roi_label_]
+                if t_r in valid_tr:
+
+                    if shared_maps:
+                        for sub_, a_hat_ in zip(sub, a_hat):
+                            for a_hat__, roi_label_ in zip(a_hat_, hrf_rois):
+                                new_row = [sub_, group, t_r, run, a_hat__,
+                                        roi_label_]
+                                haemo_delays.loc[i] = new_row
+                                i += 1
+
+                    else:
+                        for a_hat_, roi_label_ in zip(a_hat, hrf_rois):
+                            new_row = [sub, group, t_r, run, a_hat_, roi_label_]
                             haemo_delays.loc[i] = new_row
                             i += 1
-
-                else:
-                    for a_hat_, roi_label_ in zip(a_hat, hrf_rois):
-                        new_row = [sub, group, t_r, run, a_hat_, roi_label_]
-                        haemo_delays.loc[i] = new_row
-                        i += 1
 
                 runs.append(run)
 
@@ -137,7 +153,7 @@ if __name__ == '__main__':
     # Plotting
     group_color = dict(control='tab:blue', temgesic='tab:orange')
     markers = list(Line2D.markers.keys())
-    fig, axs = plt.subplots(nrows=1, ncols=1, figsize=(4, 2))
+    fig, axs = plt.subplots(nrows=1, ncols=1, figsize=(2, 2))
 
     for group_label in ['control', 'temgesic']:
 
@@ -213,10 +229,10 @@ if __name__ == '__main__':
                         color=color)
             plt.plot(unique_run, mean_y, color=color, alpha=0.9, lw=1.0)
 
-    plt.xticks([i for i in range(1, 6)], [f'Run-{i}' for i in range(1, 6)],
+    plt.xticks(unique_run, [f'Run-{i}' for i in unique_run],
                fontdict=dict(fontsize=12))
     plt.tick_params(axis="y", labelsize=12)
-    plt.ylim(0.8, 2.0)
+    plt.ylim(0.2 - 0.1, 2.0 + 0.1)
 
     plt.xlabel("")
     plt.ylabel(r"$\delta$", fontsize=12, rotation=0)
@@ -242,7 +258,7 @@ if __name__ == '__main__':
     plt.close()
 
     # Plotting evolution
-    fig, ax = plt.subplots(1, 1, figsize=(5, 2))
+    fig, ax = plt.subplots(1, 1, figsize=(3, 4))
     for sub in np.unique(haemo_delays['sub']):
 
         filter_sub = haemo_delays['sub'] == sub
@@ -277,13 +293,17 @@ if __name__ == '__main__':
         ax.scatter(x=runs_short_tr, y=mean_a_hat_short_tr,
                    color=group_color[group], marker='o', alpha=.5)
 
-    ax.set_xticks([i for i in range(1, 6)])
-    run_name = [f"Run-{i}" for i in range(1, 6)]
+        last_run_idx = np.argmax(runs)
+        ax.text(runs[last_run_idx] + 0.2, mean_a_hat[last_run_idx],
+                sub_tag_convert[sub], fontsize=8, color=group_color[group])
+
+    ax.set_xticks(unique_run)
+    run_name = [f"Run-{i}" for i in unique_run]
     ax.set_xticklabels(run_name, fontdict=dict(fontsize=15))
     ax.tick_params(axis="y", labelsize=14)
     ax.set_xlabel("")
     ax.set_ylabel(r"$\delta$", fontsize=22, rotation=0)
-    ax.set_ylim(0.8, 2.0)
+    ax.set_ylim(0.2 - 0.1, 2.0 + 0.1)
     ax.yaxis.set_label_coords(-0.1, 0.5)
     plt.grid()
     plt.tight_layout()

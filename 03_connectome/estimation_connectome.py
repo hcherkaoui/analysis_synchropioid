@@ -28,17 +28,12 @@ def transform_img(atlas, cache_dir, func_path, confounds_path):
 
     masker = input_data.NiftiLabelsMasker(labels_img=atlas,
                                           standardize=True,
-                                          t_r=t_r, smoothing_fwhm=6.,
+                                          t_r=t_r, smoothing_fwhm=12.0,
                                           detrend=True, low_pass=0.1,
                                           high_pass=0.01, memory=cache_dir,
                                           memory_level=1)
-    # masker = input_data.NiftiMapsMasker(maps_img=atlas, standardize=True,
-    #                                     t_r=t_r, smoothing_fwhm=12.,
-    #                                     detrend=True, low_pass=0.1,
-    #                                     high_pass=0.01, memory=cache_dir,
-    #                                     memory_level=1)
 
-    time_to_discard = 30  # seconds
+    time_to_discard = 20  # seconds
     index = slice(int(time_to_discard / t_r), None)
     func_img = image.index_img(func_path, index)
     confounds = pd.read_csv(confounds_path, sep='\t')[index]
@@ -54,7 +49,7 @@ def transform_img(atlas, cache_dir, func_path, confounds_path):
 # Main
 if __name__ == '__main__':
 
-    # python3 estimation_connectome.py --bids-root-dir /media/veracrypt1/synchropioid/fmri_nifti_dir/ --results-dir results_connectome --plots-dir plots --cpu 3 --verbose 10
+    # python3 estimation_connectome.py --bids-root-dir /media/veracrypt1/synchropioid/fmri_nifti_dir/ --results-dir results_connectome --task-filter all_task --plots-dir plots --cpu 3 --verbose 10
 
     t0_total = time.time()
 
@@ -66,6 +61,10 @@ if __name__ == '__main__':
     parser.add_argument('--bids-root-dir', type=str,
                         default='fmri_nifti_dir',
                         help='Set the name of the Nifti preproc directory.')
+    parser.add_argument('--task-filter', type=str,
+                        default='all_task',
+                        help='Filter the fMRI task loaded, valid options are '
+                             '["only_hb_rest", "only_rest", "all_task"].')
     parser.add_argument('--cache-dir', type=str,
                         default='__cache__',
                         help='Set the name of the cache directory.')
@@ -92,10 +91,23 @@ if __name__ == '__main__':
     if args.verbose:
         print(f"Saving connectomes plots under '{args.plots_dir}' directory")
 
+    if args.task_filter == 'only_hb_rest':
+        task_filter = 'hb'
+
+    elif args.task_filter == 'only_rest':
+        task_filter = ''
+
+    elif args.task_filter == 'all_task':
+        task_filter = '*'
+
+    else:
+        task_filter = '*'
+
     template_func_paths = os.path.join(args.bids_root_dir,
                                        f"derivatives/sub-*/func/"
-                                       f"sub-*_task-rest_run-*_space-"
-                                       f"MNI152Lin_desc-preproc_bold.nii.gz")
+                                       f"sub-*_task-{task_filter}rest_run-*_"
+                                       f"space-MNI152Lin_desc-preproc_"
+                                       f"bold.nii.gz")
     func_paths = glob(template_func_paths)
 
     participants_fname = os.path.join(args.bids_root_dir, 'participants.tsv')
@@ -137,15 +149,12 @@ if __name__ == '__main__':
 
     t0 = time.time()
 
-    # atlas = datasets.fetch_atlas_msdl()['maps']
     _, atlas = fetch_aal3_vascular_atlas()
-    # atlas = datasets.fetch_atlas_yeo_2011()['thick_17']
-
     time_series = Parallel(n_jobs=args.cpu, verbose=args.verbose)(
     delayed(transform_img)(atlas, args.cache_dir, func_path, confounds_path)
             for func_path, confounds_path in zip(func_paths, confounds_paths))
 
-    connectome_measure = connectome.ConnectivityMeasure(kind='correlation')
+    connectome_measure = connectome.ConnectivityMeasure(kind='tangent')
     corr_matrices = connectome_measure.fit_transform(time_series)
 
     del connectome_measure
@@ -169,7 +178,8 @@ if __name__ == '__main__':
         np.save(filepath, corr_matrice)
 
         _, ax = plt.subplots(figsize=(4,4))
-        plotting.plot_matrix(corr_matrice, tri='lower', colorbar=True, axes=ax)
+        plotting.plot_matrix(corr_matrice, tri='lower', colorbar=True, axes=ax,
+                             vmax=1., vmin=-1.)
         plt.tight_layout()
         filepath = os.path.join(args.plots_dir, filename + '.png')
         plt.savefig(filepath, dpi=300)

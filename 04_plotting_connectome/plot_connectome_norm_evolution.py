@@ -21,7 +21,7 @@ sns.set(font_scale=0.7)
 # Main
 if __name__ == '__main__':
 
-    # python3 plot_connectome_norm_evolution.py --connectome-dir ../04_connectome/results_connectome/ --plots-dir plots --verbose 1
+    # python3 plot_connectome_norm_evolution.py --connectome-dir ../03_connectome/results_connectome/ --plots-dir plots --task-filter only_hb_rest --verbose 1
 
     t0_total = time.time()
 
@@ -31,9 +31,25 @@ if __name__ == '__main__':
                         help='Set the name of the Nifti preproc directory.')
     parser.add_argument('--plots-dir', type=str, default='plots',
                         help='Plots directory.')
+    parser.add_argument('--task-filter', type=str,
+                        default='all_task',
+                        help='Filter the fMRI task loaded, valid options are '
+                             '["only_hb_rest", "only_rest", "all_task"].')
     parser.add_argument('--verbose', type=int, default=0,
                         help='Verbosity level.')
     args = parser.parse_args()
+
+    if args.task_filter == 'only_hb_rest':
+        valid_tr = [0.8]
+
+    elif args.task_filter == 'only_rest':
+        valid_tr = [2.0]
+
+    elif args.task_filter == 'all_task':
+        valid_tr = [0.8, 2.0]
+
+    else:
+        valid_tr = [0.8, 2.0]
 
     ###########################################################################
     # Collect the connectomes
@@ -45,29 +61,35 @@ if __name__ == '__main__':
                                              f"tr-*_group-*.npy")
     connectome_paths = glob(template_connectome_paths)
 
+    i = 0
     runs = []
     columns = ['sub', 'run', 'group', 'connectome-mean']
     connectomes = pd.DataFrame(columns=columns)
-    for i, connectome_path in enumerate(connectome_paths):
+    for connectome_path in connectome_paths:
 
         connectome_path = os.path.normpath(connectome_path)
         connectome_name = os.path.basename(connectome_path)
         chunks = connectome_name.split('_')
-        sub, run, group = chunks[2], chunks[3], chunks[5]
+        sub, run, t_r, group = chunks[2], chunks[3], chunks[4], chunks[5]
 
         sub = int(sub.split('-')[-1])
         run = f"Run-{int(run.split('-')[-1])}"
         group = group.split('-')[-1].split('.')[0]
+        t_r = float(t_r.split('-')[-1])
 
         connectome_mean = np.mean(np.load(connectome_path))
 
-        if args.verbose:
-            print(f"\r[{i+1:02d}/{len(connectome_paths):02d}] Connectome"
-                  f" extraction for '{connectome_path}'", end='')
+        if t_r in valid_tr:
 
-        connectomes.loc[i] = [sub, run, group, connectome_mean]
+            connectomes.loc[i] = [sub, run, group, connectome_mean]
 
-        runs.append(run)
+            if args.verbose:
+                print(f"\r[{i+1:02d}/{len(connectome_paths):02d}] Connectome"
+                    f" extraction for '{connectome_path}'", end='')
+
+            runs.append(run)
+
+            i += 1
 
     print()
 
