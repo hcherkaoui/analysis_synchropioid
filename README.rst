@@ -2,7 +2,10 @@ Synchropioid analysis pipeline
 ==============================
 
 
-**A:** To reproduct the results from the analysis of the Synchropioid project, you will need to go through each steps of this tutorial.
+**A:**
+------
+
+To reproduct the results from the analysis of the Synchropioid project, you will need to go through each steps of this tutorial.
 
 
 
@@ -187,4 +190,7 @@ Need steps 0/, 1/, 2/, 3/, 4/, 6/ and 7/
 All the plots are gathered under the **plots** folder.
 
 
-*B:* To add a new subject to the Synchropioid dataset, simply edit the ``dicom_subjects_list.txt`` file by adding a newline with the corresponding DICOM directory name (e.g. add a new line ``S00...``).
+**B:**
+------
+
+To add a new subject to the Synchropioid dataset, simply edit the ``dicom_subjects_list.txt`` file by adding a newline with the corresponding DICOM directory name (e.g. add a new line ``S00...``).
