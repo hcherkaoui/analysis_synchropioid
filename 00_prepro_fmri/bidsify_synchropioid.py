@@ -224,26 +224,40 @@ def archive_script_code(root_bids_dir):
 
 if __name__ == '__main__':
 
-    # ./bidsify_synchropioid.py -i /media/veracrypt1/synchropioid/dicom_dir/ -o /media/veracrypt1/synchropioid/fmri_nifti_dir/ -v -n 3
+    # ./bidsify_synchropioid.py -v -i /acquistions/SIGNA/ -o /biomaps/synchropioid/dataset_synchropioid/fmri_nifti_dir/ -l dicom_subjects_list.txt --cpu 20
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('-i','--dicom-input', help='DICOM directories',
+    parser.add_argument('-i','--dicom-root-dir',
+                        help='Acquisition DICOM directory',
                         required=True)
+    parser.add_argument('-l','--list-subjects',
+                        help='DICOM subject folders to include',
+                        default='dicom_subjects_list.txt')
     parser.add_argument('-o','--bids-output', help='BIDS root directory',
                         default='synchropioid_data_no_prepro')
     parser.add_argument('-f', '--force-reconversion',
                         help='Force (re-)conversion of the DICOM files',
                         action='store_true', default=False)
-    parser.add_argument('-n', '--cpu', help='Number of CPU', type=int,
+    parser.add_argument('--cpu', help='Number of CPU', type=int,
                         default=1)
     parser.add_argument('-v', '--verbose', help='Verbose', action='store_true',
                         default=False)
     args = vars(parser.parse_args())
 
-    sub_root_dicom_dirs = glob(args['dicom_input'] + '/*/')
-    root_bids_dir = args['bids_output']
+    dicom_root_dir = os.path.normpath(args['dicom_root_dir'])
+    list_subjects = os.path.normpath(args['list_subjects'])
+    root_bids_dir = os.path.normpath(args['bids_output'])
     force_reconversion = args['force_reconversion']
     verbose = args['verbose']
+
+    with open(list_subjects, 'r') as txtfile:
+        all_subjects = txtfile.readlines()
+
+    # XXX remove the '\n' character
+    all_subjects = [sub[:-1] for sub in all_subjects if sub[-1] == '\n']
+
+    sub_root_dicom_dirs = [os.path.join(dicom_root_dir, subject)
+                           for subject in all_subjects]
 
     archive_script_code(root_bids_dir)
 
